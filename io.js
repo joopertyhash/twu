@@ -2,15 +2,15 @@ module.exports = {
   parse: function(filename) {
     return parse(filename)
   },
-  writeConfig: function(config){
-    writeConfig(config)
+  writeConsumerKeys: function(config){
+    writeConsumerKeys(config)
   },
-  readConfig: function(){
-    return readConfig()
+  readConsumerKeys: function(){
+    return readConsumerKeys()
   }
 };
 
-const CONFIG_FILEPATH = "config.txt"
+const CONFIG_FILEPATH = "consumer_keys.txt"
 
 const fs = require('fs')
 
@@ -40,13 +40,13 @@ function toTweet(line){
 }
 
 
-function writeConfig(config){
+function writeConsumerKeys(config){
   let config_file = fs.openSync(CONFIG_FILEPATH, 'w')
   fs.appendFileSync(config_file, JSON.stringify(config), 'utf8')
   fs.closeSync(config_file)
 }
 
-function readConfig(){
+function readConsumerKeys(){
   let contents = fs.readFileSync(CONFIG_FILEPATH, 'utf8');
   let config = JSON.parse(contents)
   return config
