@@ -1,4 +1,4 @@
-*.txt
-*.json
+*.cfg
 node_modules/
 data/
+template_readme.txt

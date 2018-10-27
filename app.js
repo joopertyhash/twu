@@ -1,152 +1,70 @@
-/*
-
-  5 AUTORE BAIO GIXAU => LELENGOA ETA et al.
-
-
-
-
-*/
-
-
-/*
-
-TODO:
-  Beittu ia autorak Twitter deken. dictionary bat erabili ta lelengo biderrez sartzerakoan datuek eskatu usuarioa?
-  Mensajien limitiek IOn aplikeu?
-  Oauth autentifikazinoan erabili seguridade gixau, nonce...
-
-
-
-*/
-
-async function zi(){
-  a = [1,2,3]
-  for (let i = 0; i < 3; i++){
-    await sleep(1000)
-    console.log(a[i])
-  }
-}
-
-const MESS_MAX_CHARS = 50
-const MAX_AUTHORS = 5
-const DATA_DIR = 'data/'
-const REDIRECT_URI = 'http://localhost:50001/callback'
-
 const request = require('request-promise-native')
 const express = require('express')
-const fileUpload = require('express-fileupload')
+const files = require('express-fileupload')
+const cookies = require('cookie-parser')
+
+const autoposter = require('./autoposter')
 const io = require('./io')
+const DEFS = require('./definitions')
 
-const BACK_PORT = 50001
 
-let consumer_keys = io.readConsumerKeys()
-let oauth = {
-  consumer_key: consumer_keys.consumer_key,
-  consumer_secret: consumer_keys.consumer_secret,
-  access_token: null,
-  access_token_secret: null
+
+let currentUser = {
+  sessionKey: '',
+  token: '',
+  secret: '',
+  name: ''
 }
 
-async function prepareToTweet(filename){
-  tweets = io.parse(DATA_DIR + filename)
-  for (i in tweets){
-    tweet(tweets[i])
-    await sleep(15000)
+const baseURL = 'http://' + DEFS.ADDRESS + ':' + DEFS.PORT + '/'
+
+
+const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+function randomString(length){
+  let string = ''
+  for (let i = 0; i < length; i++){
+    let index = Math.floor(Math.random() * 62) // 62 = char_amount
+    string += chars[index]
   }
+  return string
 }
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function test(){
-  request.post({
-    url: 'https://api.twitter.com/1.1/statuses/update.json',
-    form: {
-      status: 'kaizo'
-    },
-    oauth: oauth
-  })
-  .then(result => console.log(result))
-  .catch(err => console.log(err))
-}
-
-function tweet(tweet) {
-  let message = tweetToString(tweet)
-  console.log(message)
-  request.post({
-    url: 'https://api.twitter.com/1.1/statuses/update.json',
-    form: {
-      status: message
-    },
-    oauth: oauth
-  })
-  .then(result => console.log(result))
-  .catch(err => console.log(err))
-}
-
-function tweetToString(tweet){
-  console.log(tweet)
-  let title = delimitTitle(tweet.title, MESS_MAX_CHARS)
-  let authors = delimitAuthors(tweet.authors, MAX_AUTHORS)
-  let url = tweet.url
-  let topic = tweet.topic
-
-  let result = ""
-  result += 'Topic: ' + topic + '\n'
-  result += 'Title: ' + title + '\n'
-  result += 'Authors: '
-  for (author_index in authors){
-    if (authors[author_index] == "ETAL"){
-      result += "et al."
-    }
-    else{
-      result += '@' + authors[author_index] + ', '
-    }
-  }
-  result += '\n'
-  result += url
-  return result
-}
-
-function delimitTitle(title, charAmount){
-  if (title.length <= charAmount){
-    return title
-  }
-  else {
-    let currentIndex = charAmount - 1
-    while (title[currentIndex] != ' '){
-      currentIndex--
-    }
-    return title.substring(0, currentIndex) + '...'
-  }
-}
-
-
-function delimitAuthors(authors, amount){
-  if (authors.length > amount){
-    authors = [authors[0], "ETAL"]
-  }
-  return authors
-}
-
-
-
-
 
 
 let app = express()
-app.use(fileUpload())
+app.use(files())
+app.use(cookies())
 
-//  Checks whether the user has an open session (cookie)
-app.get('/session', (req, res) => {
 
+app.get('/', (req, res) => {
+  res.sendFile('index.html', DEFS.HTML_OPTIONS)
 })
 
-app.post('/upload', (req, res) => {
+app.get('/api/sess', (req, res) => {
+  // console.log(req.cookies)
+  if (req.cookies.session){
+    res.status(200).end()
+  }
+  else{
+    res.status(400).end()
+  }
+})
+
+
+app.get('/upload', (req, res) => {
+  if (req.cookies.session){
+    res.sendFile('upload.html', DEFS.HTML_OPTIONS)
+  }else{
+    res.sendFile('error.html', DEFS.HTML_OPTIONS)
+  }
+})
+
+app.post('/api/upload', (req, res) => {
   let file = req.files.file
-  console.log('Received ' + file.name)
-  enqueue(file)
+  let session = req.cookies.session
+
+  console.log('Received ' + file.name + ' from ' + session)
+
+  autoposter.enqueue(file, currentUser)
   .then(response => {
     res.send(response.text)
   })
@@ -158,93 +76,41 @@ app.post('/upload', (req, res) => {
   })
 })
 
-app.get('/auth', (req, res) => {
-  let _oauth = {
-    callback: REDIRECT_URI,
-    consumer_key: oauth.consumer_key,
-    consumer_secret: oauth.consumer_secret
-  }
-  request.post({
-    url: 'https://api.twitter.com/oauth/request_token',
-    oauth: _oauth
-  })
-  .then(result => {
-    console.log(result)
-  	let pieces = result.split('&')
-    let oauth_token = pieces[0].split('=')[1]
-    let oauth_token_secret = pieces[1].split('=')[1]
-    let callback_confirmed = pieces[2].split('=')[1]
 
-    if (callback_confirmed == 'true'){
-      res.redirect('https://api.twitter.com/oauth/authorize?oauth_token=' + oauth_token)
-    }else{
-      res.send("CALLBACK NOT CONFIRMED!")
-    }
+app.get('/api/auth', (req, res) => {
+  console.log("Somebody is logging in...")
+
+  let sessionKey = randomString(DEFS.SESSION_KEY_SIZE)
+  currentUser.sessionKey = sessionKey
+  res.cookie('session', sessionKey)
+
+  autoposter.authorize()
+  .then(token => {
+    res.redirect('https://api.twitter.com/oauth/authorize?oauth_token=' + token)
   })
   .catch(err => {
-    console.log('Err ' + err)
-    res.send("erroretzue pase da :)")
+    console.log(err)
+    res.send(err)
   })
 })
 
-app.get('/callback', (req, res) => {
-  console.log(req.query)
-  console.log('\n')
-  let _oauth = {
-    consumer_key: oauth.consumer_key,
-    token: req.query.oauth_token,
-    verifier: req.query.oauth_verifier
-  }
-  request.post({
-    url: 'https://api.twitter.com/oauth/access_token',
-    oauth: _oauth
-  })
+app.get('/api/callback', (req, res) => {
+  console.log("Returning...")
+  // console.log(req.query)
+  autoposter.callback(req.query.oauth_token, req.query.oauth_verifier, currentUser)
   .then(result => {
-    console.log(result)
-    let pieces = result.split('&')
-    let oauth_token = pieces[0].split('=')[1]
-    let oauth_token_secret = pieces[1].split('=')[1]
-    let user_id = pieces[2].split('=')[1]
-    let screen_name = pieces[3].split('=')[1]
-    oauth.access_token = oauth_token
-    oauth.access_token_secret = oauth_token_secret
-    res.send('Welcome ' + screen_name)
-    test()
+    currentUser = result
+    res.redirect(baseURL) // index.html
+    autoposter.tweet('kaizo', currentUser)
   })
   .catch(err => {
+    console.log(err)
     res.send(err)
   })
 })
 
 
-function enqueue(file){
-  return new Promise((resolve, reject) => {
-    d = new Date()
-    year = d.getFullYear()
-    month = d.getMonth() + 1
-    day = d.getDate()
-    hour = d.getHours()
-    minute = d.getMinutes()
-    second = d.getSeconds()
-    filename = year + '_' + month + '_' + day + '_' + hour + '_' + minute + '_' + second + '.dat'
-    console.log('Saved to ' + filename)
-    file.mv(DATA_DIR + filename, err => {
-      if (err){
-        reject({
-          status: 500,
-          text: err
-        })
-      }
-      else{
-        prepareToTweet(filename)
-        resolve({
-          status: 200,
-          text: 'File uploaded!'
-        })
-      }
-    })
-  })
-}
 
-console.log('Listening on ' + BACK_PORT)
-app.listen(BACK_PORT, '192.168.0.10');
+
+console.log('Listening on ' + DEFS.PORT)
+app.listen(DEFS.PORT, DEFS.ADDRESS);

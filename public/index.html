@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <title>
+      Kaizo!
+    </title>
+  </head>
+  <body>
+    Hello
+
+    <div id='logged' style='display:none;'>
+      <a href='upload'>
+        Upload
+      </a>
+    </div>
+
+    <div id='notlogged' style='display:none;'>
+      Log in here, please:
+      <a href='http://localhost:8080/api/auth'>
+        Log in with Twitter
+      </a>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+      $.ajax({
+        url: 'http://localhost:8080/api/sess',
+        success: (result) => {
+          console.log(result)
+          document.getElementById('logged').style.display = 'block'
+        },
+        error: (err) => {
+          console.log(err)
+          document.getElementById('notlogged').style.display = 'block'
+        }
+      })
+    </script>
+  </body>
+</html>

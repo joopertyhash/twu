@@ -1,3 +1,7 @@
+const fs = require('fs')
+
+const DEFS = require('./definitions')
+
 module.exports = {
   parse: function(filename) {
     return parse(filename)
@@ -10,9 +14,6 @@ module.exports = {
   }
 };
 
-const CONFIG_FILEPATH = "consumer_keys.txt"
-
-const fs = require('fs')
 
 
 function parse(filename){
@@ -20,34 +21,36 @@ function parse(filename){
   let lines = contents.split('\r\n')
   let tweets = []
   for (line_index in lines){
-    if (lines[line_index] != ''){ // Ignore last emtpy newline
-      tweets.push(toTweet(lines[line_index]))
+    let tweet = lines[line_index]
+    // console.log(tweet)
+    if (tweet == ''){ // Ignore last emtpy newline
+      break
+    }else{
+      if (check(tweet)){
+        tweets.push(tweet)
+      }
     }
   }
   return tweets
 }
 
-function toTweet(line){
-  let params = line.split('$')
-  let result = {
-    url: params[0],
-    title: params[1],
-    authors: params[2].split(','),
-    topic: params[3],
-    additional: params[4] || null
-  }
-  return result
+
+function check(line){
+  // Hello good people over the Internet
+  return true
 }
 
 
+
+// Should not be used in principle
 function writeConsumerKeys(config){
-  let config_file = fs.openSync(CONFIG_FILEPATH, 'w')
+  let config_file = fs.openSync(DEFS.CONSUMER_KEYS_PATH, 'w')
   fs.appendFileSync(config_file, JSON.stringify(config), 'utf8')
   fs.closeSync(config_file)
 }
 
 function readConsumerKeys(){
-  let contents = fs.readFileSync(CONFIG_FILEPATH, 'utf8');
+  let contents = fs.readFileSync(DEFS.CONSUMER_KEYS_PATH, 'utf8');
   let config = JSON.parse(contents)
   return config
 }

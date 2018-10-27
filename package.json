@@ -1,0 +1,26 @@
+{
+  "name": "autoposter",
+  "version": "1.0.0",
+  "description": "Webpage for automatic tweeting",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/notRijaN/AutoPoster.git"
+  },
+  "author": "RijaN",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/notRijaN/AutoPoster/issues"
+  },
+  "homepage": "https://github.com/notRijaN/AutoPoster#readme",
+  "dependencies": {
+    "cookie-parser": "^1.4.3",
+    "express": "^4.16.4",
+    "express-fileupload": "^1.0.0",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.5"
+  }
+}
