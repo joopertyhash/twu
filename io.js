@@ -7,7 +7,7 @@ module.exports = {
     return parse(filename)
   },
   writeConsumerKeys: function(config){
-    writeConsumerKeys(config)
+    return writeConsumerKeys(config)
   },
   readConsumerKeys: function(){
     return readConsumerKeys()
@@ -17,21 +17,29 @@ module.exports = {
 
 
 function parse(filename){
-  let contents = fs.readFileSync(filename, 'utf8')
-  let lines = contents.split('\r\n')
-  let tweets = []
-  for (line_index in lines){
-    let tweet = lines[line_index]
-    // console.log(tweet)
-    if (tweet == ''){ // Ignore last emtpy newline
-      break
-    }else{
-      if (check(tweet)){
-        tweets.push(tweet)
+  return new Promise((resolve, reject) => {
+    let contents = fs.readFile(filename, 'utf8', (err, data) => {
+      if (!err){
+        let lines = data.split('\r\n')
+        let tweets = []
+        for (line_index in lines){
+          let tweet = lines[line_index]
+          // console.log(tweet)
+          if (tweet == ''){ // Ignore last emtpy newline
+            break
+          }else{
+            if (check(tweet)){
+              tweets.push(tweet)
+            }
+          }
+        }
+        resolve(tweets)
       }
-    }
-  }
-  return tweets
+      else{
+        reject(err)
+      }
+    })
+  })
 }
 
 
@@ -42,7 +50,7 @@ function check(line){
 
 
 
-// Should not be used in principle
+//  DONT MAKE THESE ASYNC AS PROGRAM NEEDS TO WAIT FOR THEM
 function writeConsumerKeys(config){
   let config_file = fs.openSync(DEFS.CONSUMER_KEYS_PATH, 'w')
   fs.appendFileSync(config_file, JSON.stringify(config), 'utf8')
@@ -51,6 +59,5 @@ function writeConsumerKeys(config){
 
 function readConsumerKeys(){
   let contents = fs.readFileSync(DEFS.CONSUMER_KEYS_PATH, 'utf8');
-  let config = JSON.parse(contents)
-  return config
+  return JSON.parse(contents)
 }

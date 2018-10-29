@@ -8,13 +8,6 @@
     Hello
 
     <div id='logged' style='display:none;'>
-      <a href='upload'>
-        Upload
-      </a>
-      <hr/>
-      <a href='profile'>
-        Profile
-      </a>
     </div>
 
     <div id='notlogged' style='display:none;'>
@@ -27,9 +20,16 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script>
       $.ajax({
-        url: 'http://localhost:8080/api/sess',
-        success: (result) => {
-          console.log(result)
+        url: 'http://localhost:8080/api/profile',
+        success: (user) => {
+          <!-- console.log(user) -->
+          user = JSON.parse(user)
+          console.log(user)
+          document.getElementById('logged').innerHTML =
+          '<p> Name: ' + user.name + '</p>\n' +
+          '<p> Errors: ' + user.errors + '</p>' +
+          '<p> Tweets: ' + user.tweets + '</p>'
+
           document.getElementById('logged').style.display = 'block'
         },
         error: (err) => {
