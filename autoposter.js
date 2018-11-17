@@ -2,14 +2,20 @@ const request = require('request-promise-native')
 
 const DEFS = require('./definitions.js')
 const io = require('./io')
-const User = require('./user')
 
 module.exports = {
+  getPendingTweets: (tweeterID) => {
+    return getPendingTweets(tweeterID)
+  },
+  getErrors: (tweeterID) => {
+    return getErrors(tweeterID)
+  },
+
   enqueue: function(file, user) {
     return enqueue(file, user)
   },
-  tweet: function(text, user){
-    return tweet(text, user)
+  startDequeueing: function(){
+    dequeue()
   },
 
   authorize: function(){
@@ -19,9 +25,10 @@ module.exports = {
     return callback(token, verifier, currentUser)
   },
 
-  dequeue: function(){
-    dequeue()
+  tweet: function(text, user){
+    return tweet(text, user)
   }
+
 }
 
 const CONSUMER_KEYS = io.readConsumerKeys()
@@ -29,7 +36,29 @@ const CONSUMER_KEYS = io.readConsumerKeys()
 
 
 let queue = []
+let errors = []
 let nextTweetTime = null
+
+
+function getPendingTweets(tweeterID){
+  let userTweets = []
+  for (let i = 0; i < queue.length; i++){
+    if (queue[i].user == tweeterID){
+      userTweets.push(queue[i])
+    }
+  }
+  return userTweets;
+}
+
+function getErrors(tweeterID){
+  let userErrors = []
+  for (let i = 0; i < errors.length; i++){
+    if (errors[i].user == tweeterID){
+      userErrors.push(errors[i])
+    }
+  }
+  return userErrors;
+}
 
 
 function enqueue(file, user){
@@ -56,16 +85,12 @@ function enqueue(file, user){
         io.parse(DEFS.DATA_DIR + filename)
         .then(tweets => {
           for (let i = 0; i < tweets.length; i++){
-            console.log(new Date(nextTweetTime + queue.length * DEFS.TWEET_INTERVAL * 1000))
+            // console.log(new Date(nextTweetTime + queue.length * DEFS.TWEET_INTERVAL * 1000))
             let dueTime = new Date(nextTweetTime + queue.length * DEFS.TWEET_INTERVAL * 1000).toTimeString().split(' ')[0] // Get only hh:mm:ss
 
-            user.tweets.push({
-              tweet: tweets[i],
-              dueTime: dueTime
-            })
             queue.push({
               tweet: tweets[i],
-              user: user,
+              user: user.tweeterID,
               time: dueTime
             })
           }
@@ -74,7 +99,10 @@ function enqueue(file, user){
             text: 'File uploaded!'
           })
         })
-        .catch(err => reject(err))
+        .catch(err => reject({
+          status: 420,
+          text: err
+        }))
       }
     })
   })
@@ -85,7 +113,6 @@ async function dequeue(){
     console.log('Dequeueing...')
     if (queue.length != 0){
       let dequeued = queue.shift()
-      dequeued.user.tweets.shift()
       // tweet(dequeued.tweet, dequeued.user)
       console.log(dequeued)
     }
@@ -175,7 +202,13 @@ function callback(token, verifier, sessionKey){
       let user_id = pieces[2].split('=')[1]
       let screen_name = pieces[3].split('=')[1]
 
-      let currentUser = new User(sessionKey, screen_name, token, secret)
+      let currentUser = {
+        sessionKey: sessionKey,
+        tweeterID: user_id,
+        name: screen_name,
+        token: token,
+        secret: secret
+      }
 
       // console.log(currentUser)
       resolve(currentUser)

@@ -2,17 +2,16 @@ const request = require('request-promise-native')
 const express = require('express')
 const files = require('express-fileupload')
 const cookies = require('cookie-parser')
+const mongoose = require('mongoose')
 
 const autoposter = require('./autoposter')
 const io = require('./io')
 const DEFS = require('./definitions')
-const User = require('./user')
+const db = require('./db')
 
-
-
-let currentUser = null
 
 const baseURL = 'http://' + DEFS.ADDRESS + ':' + DEFS.PORT + '/'
+
 
 
 const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -31,6 +30,46 @@ app.use(files())
 app.use(cookies())
 
 
+function checkSession(sessionKey, lean){
+  return new Promise((resolve, reject) => {
+    if (!sessionKey){
+      reject(DEFS.NO_SESSION)
+    }
+    else{
+      if (lean){
+        let user = db.getUserLean(sessionKey)
+        .then(user => {
+          if (user) {
+            resolve(user)
+          }
+          else{
+            reject(DEFS.SESSION_NOT_FOUND)
+          }
+        })
+        .catch(err => {
+          reject(err)
+        })
+      }
+      else{
+        let user = db.getUser(sessionKey)
+        .then(user => {
+          if (user) {
+            resolve(user)
+          }
+          else{
+            reject(DEFS.SESSION_NOT_FOUND)
+          }
+        })
+        .catch(err => {
+          reject(err)
+        })
+      }
+    }
+  })
+  //get sessionID
+}
+
+
 app.get('/', (req, res) => {
   res.sendFile('index.html', DEFS.HTML_OPTIONS)
 })
@@ -45,7 +84,6 @@ app.get('/api/sess', (req, res) => {
   }
 })
 
-
 app.get('/profile', (req, res) => {
   if (req.cookies.session){
     res.sendFile('profile.html', DEFS.HTML_OPTIONS)
@@ -55,15 +93,20 @@ app.get('/profile', (req, res) => {
 })
 
 app.get('/api/profile', (req, res) => {
-  let sessionKey = req.cookies.session
-  // obviously a search must come here
-  if (sessionKey){
+  checkSession(req.cookies.session, true)
+  .then(user => {
+    let tweets = autoposter.getPendingTweets(user.tweeterID)
+    let errors = autoposter.getErrors(user.tweeterID)
     res.send(JSON.stringify({
-      name: currentUser.name,
-      errors: currentUser.errors,
-      tweets: currentUser.tweets
+      name: user.name,
+      errors: errors,
+      tweets: tweets
     }))
-  }
+  })
+  .catch(err => {
+    res.send(err)
+    console.log(err)
+  })
 })
 
 
@@ -77,18 +120,23 @@ app.get('/upload', (req, res) => {
 })
 
 app.post('/api/upload', (req, res) => {
-  // apply rate limiting...
-  let file = req.files.file
-  let session = req.cookies.session
-
-  console.log('Received ' + file.name + ' from ' + session)
-
-  autoposter.enqueue(file, currentUser)
-  .then(response => {
-    res.send(response.text)
+  checkSession(req.cookies.session, true)
+  .then(user => {
+    // apply rate limiting...
+    let file = req.files.file
+    console.log('Received ' + file.name + ' from ' + user.name)
+    autoposter.enqueue(file, user)
+    .then(response => {
+      res.send(response.text)
+    })
+    .catch(err => {
+      console.log("ERR: " + err)
+      res.status(err.status).send(err.text)
+    })
   })
   .catch(err => {
-    res.status(err.status).send(err.text)
+    res.send(err)
+    console.log(err)
   })
 })
 
@@ -125,9 +173,13 @@ app.get('/api/callback', (req, res) => {
     autoposter.callback(req.query.oauth_token, req.query.oauth_verifier, sessionKey)
     .then(user => {
       res.redirect(baseURL) // index.html
-      currentUser = user
-      // autoposter.tweet('kaizo', currentUser)
-      console.log("Successfully logged.")
+      db.createUser(user)
+      .then(user => {
+        console.log('Successfully logged:\n' + user)
+      })
+      .catch(err => {
+        console.log(err)
+      })
     })
     .catch(err => {
       console.log(err)
@@ -139,8 +191,9 @@ app.get('/api/callback', (req, res) => {
 
 
 
-
+db.connect(DEFS.PORT_DB)
+// db.printUsers()
 console.log('Listening on ' + DEFS.PORT)
 app.listen(DEFS.PORT, DEFS.ADDRESS)
 
-autoposter.dequeue()
+autoposter.startDequeueing()

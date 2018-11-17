@@ -33,6 +33,11 @@ function parse(filename){
             }
           }
         }
+
+        fs.unlink(filename, (err) => {
+          if (err) throw err;
+          console.log(filename + ' was deleted');
+        });
         resolve(tweets)
       }
       else{

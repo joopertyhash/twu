@@ -25,10 +25,16 @@
           <!-- console.log(user) -->
           user = JSON.parse(user)
           console.log(user)
-          document.getElementById('logged').innerHTML =
+          let html =
           '<p> Name: ' + user.name + '</p>\n' +
-          '<p> Errors: ' + user.errors + '</p>' +
-          '<p> Tweets: ' + user.tweets + '</p>'
+          '<p> Errors: ' + user.errors + '</p>\n'+
+          '<p> Tweets: </p>\n'
+          for (let i = 0; i < user.tweets.length; i++){
+            let tweet = user.tweets[i]
+            html += '<p> ' + tweet.tweet + '\nDue time: ' + tweet.time + ' </p>\n'
+          }
+
+          document.getElementById('logged').innerHTML = html
 
           document.getElementById('logged').style.display = 'block'
         },
