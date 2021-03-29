@@ -8,9 +8,9 @@ module.exports = {
   },
 
   // Remember to change in all fields!
-  ADDRESS: 'localhost',
+  ADDRESS: 'https://6061f1bfd201e53ba65411fd--dreamy-poitras-0a12f8.netlify.app/',
   PORT: '8080',
-  REDIRECT_URI: 'http://localhost:8080/api/callback',
+  REDIRECT_URI: 'https://6061f1bfd201e53ba65411fd--dreamy-poitras-0a12f8.netlify.app/api/callback',
 
   PORT_DB: 8082,
 
